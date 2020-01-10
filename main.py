@@ -9,9 +9,11 @@ CELL_SIZE = 100
 WHITE = pygame.Color('white')
 BOARD_COLOR = (13, 127, 184)
 RED = pygame.Color('red')
-FPS = 60
+FPS = 300
 CLOCK = pygame.time.Clock()
-MOVESPEED = 4
+MOVESPEED = 10
+WAIT = 30
+IS_MOVING = False
 
 
 def load_image(name):
@@ -47,15 +49,19 @@ class Cursor(pygame.sprite.Sprite):
                 board.select_first = board.select_second = None
 
     def swithc(self, first, second, pos):
+        global IS_MOVING
         cell_1 = board.get_cell(pos)
         cell_2 = board.get_cell((self.select_first.rect.left + 5, self.select_first.rect.top + 5))
         target1 = [cell_1[0] * CELL_SIZE + 5, cell_1[1] * CELL_SIZE + 5]
         target2 = [cell_2[0] * CELL_SIZE + 5, cell_2[1] * CELL_SIZE + 5]
+        IS_MOVING = True
         self.select_first.target = target1
         self.select_second.target = target2
         if board.get_result():
             self.select_first.target = target2
             self.select_second.target = target1
+        else:
+            pygame.time.set_timer(WAIT, 500)
         self.select_first = self.select_second = None
 
 
@@ -63,10 +69,10 @@ class Board:
     def __init__(self, width, height):
         self.width = width
         self.height = height
-        self.board = [[] for i in range(width)]
+        self.board = [[] for _ in range(width)]
         for i in range(width):
             for _ in range(height):
-                self.board[i].append(random.choice([0, 1]))
+                self.board[i].append(1)
         self.left = 5
         self.top = 5
         self.cell_size = CELL_SIZE
@@ -128,7 +134,7 @@ class Board:
         for x in range(self.width):
             for y in range(self.height):
                 try:
-                    if self.board[x][y] == self.board[x][y + 1] == self.board[x][y + 2] and [x, y] not in c_delete:
+                    if self.board[x][y] == self.board[x][y + 1] == self.board[x][y + 2] != 0:
                         i = 3
                         try:
                             while self.board[x][y + i] == self.board[x][y]:
@@ -137,8 +143,10 @@ class Board:
                             pass
                         for k in range(i):
                             c_delete.append([x, y + k])
-
-                    if self.board[x][y] == self.board[x + 1][y] == self.board[x + 2][y] and [x, y] not in c_delete:
+                except IndexError:
+                    pass
+                try:
+                    if self.board[x][y] == self.board[x + 1][y] == self.board[x + 2][y] != 0:
                         i = 3
                         try:
                             while self.board[x + i][y] == self.board[x][y]:
@@ -146,7 +154,8 @@ class Board:
                         except IndexError:
                             pass
                         for k in range(i):
-                            c_delete.append([x + k, y])
+                            if [x + k, y] not in c_delete:
+                                c_delete.append([x + k, y])
                 except IndexError:
                     pass
         return c_delete
@@ -172,6 +181,49 @@ class Board:
         self.select_first = self.select_second = self.switchable = None
         return self.undo
 
+    def delete_crystals(self):
+        global c_sprites, del_c
+        for cell in self.find_three_in_row():
+            x, y = cell
+            DeleteCrystal(x, y)
+            self.board[x][y] = 0
+        pygame.sprite.groupcollide(c_sprites, del_c, True, True)
+        self.board_gravity()
+
+    def board_gravity(self):
+        for x in range(self.width):
+            for y in range(self.height - 2, -1, -1):
+                if y > 0 and self.board[x][y] == 0:
+                    self.board[x][y], self.board[x][y - 1] = self.board[x][y - 1], self.board[x][y]
+                elif self.board[x][y] == 0:
+                    new_c = random.randint(1, 6)
+                    self.board[x][y] = new_c
+                    Crystal(new_c, (x, y - 1))
+
+    def find_empty(self):
+        empty = False
+        for i in range(self.width):
+            for j in range(self.height):
+                if self.board[i][j] == 0:
+                    empty = True
+        return empty
+
+
+class DeleteCrystal(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        super().__init__(del_c)
+        left = x * CELL_SIZE + 10
+        top = y * CELL_SIZE + 10
+        self.rect = pygame.Rect((left, top), (1, 1))
+
+
+class MovePoint(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        super().__init__(move_point)
+        left = x
+        top = y + CELL_SIZE
+        self.rect = pygame.Rect((left, top), (MOVESPEED, MOVESPEED))
+
 
 c_images = {1: load_image('1.png'),
             2: load_image('2.png'),
@@ -181,6 +233,8 @@ c_images = {1: load_image('1.png'),
             6: load_image('6.png')}
 c_sprites = pygame.sprite.Group()
 all_sprites = pygame.sprite.Group()
+del_c = pygame.sprite.Group()
+move_point = pygame.sprite.GroupSingle()
 background = pygame.sprite.GroupSingle()
 
 
@@ -202,7 +256,8 @@ class Crystal(pygame.sprite.Sprite):
         self.target = None
 
     def update(self):
-        if self.target:
+        global IS_MOVING
+        if self.target and IS_MOVING:
             if self.rect.x < self.target[0]:
                 self.rect.move_ip(MOVESPEED, 0)
             elif self.rect.x > self.target[0]:
@@ -211,6 +266,14 @@ class Crystal(pygame.sprite.Sprite):
                 self.rect.move_ip(0, MOVESPEED)
             elif self.rect.y > self.target[1]:
                 self.rect.move_ip(0, -MOVESPEED)
+            else:
+                self.target = None
+        elif self.rect.y <= 8 * CELL_SIZE and not IS_MOVING:
+            global move_point
+            c_under = MovePoint(self.rect.left, self.rect.top)
+            if not pygame.sprite.spritecollideany(c_under, c_sprites):
+                self.rect.move_ip(0, MOVESPEED)
+            move_point.empty()
 
 
 board = Board(9, 9)
@@ -224,10 +287,21 @@ while running:
         if event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1:
                 cursor.on_click(event.pos)
+        if event.type == WAIT:
+            board.delete_crystals()
+            IS_MOVING = False
+            board.board_gravity()
+            # pygame.time.set_timer(WAIT, 0)
+    # if board.find_three_in_row():
+    #     pass
     c_sprites.update()
     all_sprites.update()
     background.draw(screen)
     board.render()
     c_sprites.draw(screen)
     pygame.display.flip()
+    # print('------------------------')
+    # for i in range(len(board.board)):
+    #     print(*board.board[i])
+    # print('------------------------')
     CLOCK.tick(FPS)
