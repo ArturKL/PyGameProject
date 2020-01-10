@@ -9,7 +9,7 @@ CELL_SIZE = 100
 WHITE = pygame.Color('white')
 BOARD_COLOR = (13, 127, 184)
 RED = pygame.Color('red')
-FPS = 300
+FPS = 60
 CLOCK = pygame.time.Clock()
 MOVESPEED = 10
 WAIT = 30
@@ -79,10 +79,6 @@ class Board:
         self.fill_board()
         while self.find_three_in_row():
             self.fill_board()
-        for x in range(self.width):
-            for y in range(self.height):
-                c_type = self.board[x][y]
-                Crystal(c_type, (x, y))
         self.select_first = None
         self.select_second = None
         self.direction = None
@@ -128,6 +124,15 @@ class Board:
             for y in range(self.height):
                 c_type = random.randint(1, 6)
                 self.board[x][y] = c_type
+        self.create_sprites()
+
+    def create_sprites(self):
+        global c_sprites
+        c_sprites.empty()
+        for x in range(self.width):
+            for y in range(self.height):
+                c_type = self.board[x][y]
+                Crystal(c_type, (x, y))
 
     def find_three_in_row(self):
         c_delete = []
@@ -192,11 +197,27 @@ class Board:
 
     def board_gravity(self):
         for x in range(self.width):
-            for y in range(self.height - 2, -1, -1):
+            for y in range(self.height - 1, -1, -1):
                 if y > 0 and self.board[x][y] == 0:
                     self.board[x][y], self.board[x][y - 1] = self.board[x][y - 1], self.board[x][y]
                 elif self.board[x][y] == 0:
-                    new_c = random.randint(1, 6)
+                    pick = [i for i in range(1, 7)]
+                    if x != 0:
+                        pick.remove(self.board[x - 1][y])
+                    try:
+                        pick.remove(self.board[x + 1][y])
+                    except IndexError:
+                        pass
+                    except ValueError:
+                        pass
+                    i = 0
+                    while self.board[x][y + i] == 0:
+                        i += 1
+                    try:
+                        pick.remove(self.board[x][y + i])
+                    except ValueError:
+                        pass
+                    new_c = random.choice(pick)
                     self.board[x][y] = new_c
                     Crystal(new_c, (x, y - 1))
 
@@ -256,7 +277,7 @@ class Crystal(pygame.sprite.Sprite):
         self.target = None
 
     def update(self):
-        global IS_MOVING
+        global IS_MOVING, IS_FALLING
         if self.target and IS_MOVING:
             if self.rect.x < self.target[0]:
                 self.rect.move_ip(MOVESPEED, 0)
@@ -290,18 +311,14 @@ while running:
         if event.type == WAIT:
             board.delete_crystals()
             IS_MOVING = False
-            board.board_gravity()
+            # board.board_gravity()
             # pygame.time.set_timer(WAIT, 0)
-    # if board.find_three_in_row():
-    #     pass
+    if board.find_empty():
+        board.board_gravity()
     c_sprites.update()
     all_sprites.update()
     background.draw(screen)
     board.render()
     c_sprites.draw(screen)
     pygame.display.flip()
-    # print('------------------------')
-    # for i in range(len(board.board)):
-    #     print(*board.board[i])
-    # print('------------------------')
     CLOCK.tick(FPS)
