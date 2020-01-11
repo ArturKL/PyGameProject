@@ -1,7 +1,7 @@
 import pygame
 import random
 import os
-import time
+import sys
 pygame.init()
 SIZE = WIDTH, HEIGHT = 1137, 910
 screen = pygame.display.set_mode(SIZE)
@@ -9,11 +9,15 @@ CELL_SIZE = 100
 WHITE = pygame.Color('white')
 BOARD_COLOR = (13, 127, 184)
 RED = pygame.Color('red')
-FPS = 60
+FPS = 120
 CLOCK = pygame.time.Clock()
 MOVESPEED = 10
 WAIT = 30
 IS_MOVING = False
+STARTSCREEN = True
+TEXTLCOLOR = (184, 32, 111)
+BUTTONCOLOR = (76, 165, 85)
+SCORE = 0
 
 
 def load_image(name):
@@ -35,18 +39,22 @@ class Cursor(pygame.sprite.Sprite):
         self.rect = pygame.Rect(pygame.mouse.get_pos(), (1, 1))
 
     def on_click(self, pos):
-        board.get_click(pos)
-        if not self.select_first:
-            for i in pygame.sprite.spritecollide(self, c_sprites, False):
-                self.select_first = i
+        if pygame.sprite.spritecollide(self, buttons, False):
+            button = pygame.sprite.spritecollide(self, buttons, False)[0]
+            button.on_click()
         else:
-            if board.switchable:
+            board.get_click(pos)
+            if not self.select_first:
                 for i in pygame.sprite.spritecollide(self, c_sprites, False):
-                    self.select_second = i
-                self.swithc(self.select_first, self.select_second, pos)
+                    self.select_first = i
             else:
-                self.select_first = self.select_second = None
-                board.select_first = board.select_second = None
+                if board.switchable:
+                    for i in pygame.sprite.spritecollide(self, c_sprites, False):
+                        self.select_second = i
+                    self.swithc(self.select_first, self.select_second, pos)
+                else:
+                    self.select_first = self.select_second = None
+                    board.select_first = board.select_second = None
 
     def swithc(self, first, second, pos):
         global IS_MOVING
@@ -67,6 +75,7 @@ class Cursor(pygame.sprite.Sprite):
 
 class Board:
     def __init__(self, width, height):
+        global SCORE
         self.width = width
         self.height = height
         self.board = [[] for _ in range(width)]
@@ -77,7 +86,7 @@ class Board:
         self.top = 5
         self.cell_size = CELL_SIZE
         self.fill_board()
-        while self.find_three_in_row():
+        while self.find_three_in_row(False):
             self.fill_board()
         self.select_first = None
         self.select_second = None
@@ -134,15 +143,20 @@ class Board:
                 c_type = self.board[x][y]
                 Crystal(c_type, (x, y))
 
-    def find_three_in_row(self):
+    def find_three_in_row(self, count_score):
+        global SCORE
         c_delete = []
         for x in range(self.width):
             for y in range(self.height):
                 try:
                     if self.board[x][y] == self.board[x][y + 1] == self.board[x][y + 2] != 0:
+                        if count_score:
+                            SCORE += 30
                         i = 3
                         try:
                             while self.board[x][y + i] == self.board[x][y]:
+                                if count_score:
+                                    SCORE += 10 * i
                                 i += 1
                         except IndexError:
                             pass
@@ -152,9 +166,13 @@ class Board:
                     pass
                 try:
                     if self.board[x][y] == self.board[x + 1][y] == self.board[x + 2][y] != 0:
+                        if count_score:
+                            SCORE += 30
                         i = 3
                         try:
                             while self.board[x + i][y] == self.board[x][y]:
+                                if count_score:
+                                    SCORE += 10 * i
                                 i += 1
                         except IndexError:
                             pass
@@ -178,7 +196,7 @@ class Board:
     def get_result(self):
         x1, y1 = self.select_first
         x2, y2 = self.select_second
-        if self.find_three_in_row():
+        if self.find_three_in_row(False):
             self.undo = False
         else:
             self.board[x1][y1], self.board[x2][y2] = self.board[x2][y2], self.board[x1][y1]
@@ -188,7 +206,7 @@ class Board:
 
     def delete_crystals(self):
         global c_sprites, del_c
-        for cell in self.find_three_in_row():
+        for cell in self.find_three_in_row(True):
             x, y = cell
             DeleteCrystal(x, y)
             self.board[x][y] = 0
@@ -255,6 +273,7 @@ c_images = {1: load_image('1.png'),
 c_sprites = pygame.sprite.Group()
 all_sprites = pygame.sprite.Group()
 del_c = pygame.sprite.Group()
+buttons = pygame.sprite.Group()
 move_point = pygame.sprite.GroupSingle()
 background = pygame.sprite.GroupSingle()
 
@@ -277,7 +296,7 @@ class Crystal(pygame.sprite.Sprite):
         self.target = None
 
     def update(self):
-        global IS_MOVING, IS_FALLING
+        global IS_MOVING
         if self.target and IS_MOVING:
             if self.rect.x < self.target[0]:
                 self.rect.move_ip(MOVESPEED, 0)
@@ -297,11 +316,85 @@ class Crystal(pygame.sprite.Sprite):
             move_point.empty()
 
 
+class Button(pygame.sprite.Sprite):
+    def __init__(self, text, pos, size, tip):
+        super().__init__(buttons)
+        self.image = pygame.Surface(size)
+        self.image.fill(BUTTONCOLOR)
+        font = pygame.font.SysFont('arial', 40)
+        font.set_bold(1)
+        self.text = font.render(text, 1, TEXTLCOLOR)
+        self.image.blit(self.text, (10, 5))
+        self.rect = self.image.get_rect()
+        self.rect.move_ip(pos)
+        self.type = tip
+        # screen.blit(self.image, pos)
+
+    def on_click(self):
+        global STARTSCREEN, board, SCORE
+        if self.type == 'endless':
+            STARTSCREEN = False
+        elif self.type == 'home':
+            STARTSCREEN = True
+        elif self.type == 'reset':
+            board = Board(9, 9)
+            SCORE = 0
+
+
+class Score:
+    def __init__(self):
+        self.draw_score = pygame.Surface((200, 90))
+        self.font = pygame.font.SysFont('arial', 72)
+        self.font.set_bold(1)
+        self.score = 0
+
+    def update(self):
+        self.draw_score.fill(BUTTONCOLOR)
+        self.score = SCORE
+        text = self.font.render(str(self.score), 1, TEXTLCOLOR)
+        self.draw_score.blit(text, (5, 5))
+        screen.blit(self.draw_score, (930, 5))
+
+
 board = Board(9, 9)
 running = True
 BackGround()
 cursor = Cursor(Crystal)
+
+
+def start_screen():
+    global STARTSCREEN, TEXTLCOLOR, board, SCORE, score
+    buttons.empty()
+    SCORE = 0
+    font = pygame.font.SysFont('thaoma', 150)
+    font.set_bold(1)
+    game_name = font.render('Crystal Rush', 1, TEXTLCOLOR)
+    screen.fill((0, 0, 0))
+    background.draw(screen)
+    screen.blit(game_name, (170, 290))
+    Button('Бесконечный режим', (350, 400), (400, 55), 'endless')
+    Button('       На время', (350, 470), (400, 55), 'limited')
+    buttons.draw(screen)
+    STARTSCREEN = True
+    pygame.display.flip()
+    while STARTSCREEN:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                cursor.on_click(event.pos)
+        all_sprites.update()
+    buttons.empty()
+    Button('В меню', (930, 200), (190, 50), 'home')
+    Button('Сбросить', (930, 260), (190, 50), 'reset')
+    board = Board(9, 9)
+    score = Score()
+
+
+start_screen()
 while running:
+    score = Score()
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
@@ -311,14 +404,16 @@ while running:
         if event.type == WAIT:
             board.delete_crystals()
             IS_MOVING = False
-            # board.board_gravity()
-            # pygame.time.set_timer(WAIT, 0)
     if board.find_empty():
         board.board_gravity()
+    if STARTSCREEN:
+        start_screen()
     c_sprites.update()
     all_sprites.update()
     background.draw(screen)
+    score.update()
     board.render()
+    buttons.draw(screen)
     c_sprites.draw(screen)
     pygame.display.flip()
     CLOCK.tick(FPS)
