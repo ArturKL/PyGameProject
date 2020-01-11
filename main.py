@@ -18,14 +18,15 @@ STARTSCREEN = True
 TEXTLCOLOR = (184, 32, 111)
 BUTTONCOLOR = (76, 165, 85)
 SCORE = 0
-CRYSTALBREAKSOUND = pygame.mixer.Sound('A:\Python\PyGameProject\data\sound.wav')
-pygame.mixer.music.load('A:\Python\PyGameProject\data\music.mp3')
-pygame.mixer.music.set_volume(1)
+CRYSTALBREAKSOUND = pygame.mixer.Sound('data\sound.wav')
+CRYSTALBREAKSOUND.set_volume(0.2)
+pygame.mixer.music.load('data\music.mp3')
+pygame.mixer.music.set_volume(0.5)
 pygame.mixer.music.play(1)
 
 
 def load_image(name):
-    fullname = os.path.join('A:\Python\PyGameProject\data', name)
+    fullname = os.path.join('data', name)
     image = pygame.image.load(fullname).convert_alpha()
     return image
 
