@@ -113,7 +113,7 @@ class Board:
                         return i, j
                 rect = pygame.Rect(x, y, self.cell_size, self.cell_size)
                 if self.select_first == (i, j) or self.select_second == (i, j):
-                    pygame.draw.rect(screen, RED, rect, 2)
+                    pygame.draw.rect(screen, RED, rect, 4)
                 else:
                     pygame.draw.rect(screen, BOARD_COLOR, rect, 1)
 
