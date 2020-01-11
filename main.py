@@ -18,6 +18,10 @@ STARTSCREEN = True
 TEXTLCOLOR = (184, 32, 111)
 BUTTONCOLOR = (76, 165, 85)
 SCORE = 0
+CRYSTALBREAKSOUND = pygame.mixer.Sound('A:\Python\PyGameProject\data\sound.wav')
+pygame.mixer.music.load('A:\Python\PyGameProject\data\music.mp3')
+pygame.mixer.music.set_volume(1)
+pygame.mixer.music.play(1)
 
 
 def load_image(name):
@@ -206,6 +210,8 @@ class Board:
 
     def delete_crystals(self):
         global c_sprites, del_c
+        if self.find_three_in_row(False):
+            CRYSTALBREAKSOUND.play()
         for cell in self.find_three_in_row(True):
             x, y = cell
             DeleteCrystal(x, y)
@@ -328,12 +334,14 @@ class Button(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.move_ip(pos)
         self.type = tip
-        # screen.blit(self.image, pos)
 
     def on_click(self):
         global STARTSCREEN, board, SCORE
         if self.type == 'endless':
             STARTSCREEN = False
+        elif self.type == 'exit':
+            pygame.quit()
+            sys.exit()
         elif self.type == 'home':
             STARTSCREEN = True
         elif self.type == 'reset':
@@ -343,7 +351,7 @@ class Button(pygame.sprite.Sprite):
 
 class Score:
     def __init__(self):
-        self.draw_score = pygame.Surface((200, 90))
+        self.draw_score = pygame.Surface((205, 90))
         self.font = pygame.font.SysFont('arial', 72)
         self.font.set_bold(1)
         self.score = 0
@@ -373,7 +381,7 @@ def start_screen():
     background.draw(screen)
     screen.blit(game_name, (170, 290))
     Button('Бесконечный режим', (350, 400), (400, 55), 'endless')
-    Button('       На время', (350, 470), (400, 55), 'limited')
+    Button('         Выход', (350, 470), (400, 55), 'exit')
     buttons.draw(screen)
     STARTSCREEN = True
     pygame.display.flip()
@@ -386,8 +394,8 @@ def start_screen():
                 cursor.on_click(event.pos)
         all_sprites.update()
     buttons.empty()
-    Button('В меню', (930, 200), (190, 50), 'home')
-    Button('Сбросить', (930, 260), (190, 50), 'reset')
+    Button('В Меню', (930, 200), (205, 50), 'home')
+    Button('Сбросить', (930, 260), (205, 50), 'reset')
     board = Board(9, 9)
     score = Score()
 
