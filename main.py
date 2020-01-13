@@ -15,6 +15,7 @@ MOVESPEED = 10
 WAIT = 30
 IS_MOVING = False
 STARTSCREEN = True
+SETTINGS = False
 TEXTLCOLOR = (184, 32, 111)
 BUTTONCOLOR = (76, 165, 85)
 SCORE = 0
@@ -22,6 +23,7 @@ CRYSTALBREAKSOUND = pygame.mixer.Sound('data\sound.wav')
 CRYSTALBREAKSOUND.set_volume(0.2)
 pygame.mixer.music.load('data\music.mp3')
 pygame.mixer.music.set_volume(0.5)
+MUSICVOLUME = int(pygame.mixer.music.get_volume() * 100)
 pygame.mixer.music.play(1)
 
 
@@ -337,7 +339,7 @@ class Button(pygame.sprite.Sprite):
         self.type = tip
 
     def on_click(self):
-        global STARTSCREEN, board, SCORE
+        global STARTSCREEN, board, SCORE, SETTINGS, MUSICVOLUME
         if self.type == 'endless':
             STARTSCREEN = False
         elif self.type == 'exit':
@@ -345,9 +347,21 @@ class Button(pygame.sprite.Sprite):
             sys.exit()
         elif self.type == 'home':
             STARTSCREEN = True
+            SETTINGS = False
         elif self.type == 'reset':
             board = Board(9, 9)
             SCORE = 0
+        elif self.type == 'settings':
+            SETTINGS = True
+            STARTSCREEN = False
+        elif self.type == 'plus':
+            if MUSICVOLUME < 100:
+                MUSICVOLUME += 10
+                pygame.mixer.music.set_volume(MUSICVOLUME / 100)
+        elif self.type == 'minus':
+            if MUSICVOLUME > 0:
+                MUSICVOLUME -= 10
+                pygame.mixer.music.set_volume(MUSICVOLUME/ 100)
 
 
 class Score:
@@ -382,7 +396,8 @@ def start_screen():
     background.draw(screen)
     screen.blit(game_name, (170, 290))
     Button('Бесконечный режим', (350, 400), (400, 55), 'endless')
-    Button('         Выход', (350, 470), (400, 55), 'exit')
+    Button('      Настройки', (350, 470), (400, 55), 'settings')
+    Button('         Выход', (350, 540), (400, 55), 'exit')
     buttons.draw(screen)
     STARTSCREEN = True
     pygame.display.flip()
@@ -401,6 +416,37 @@ def start_screen():
     score = Score()
 
 
+def settings():
+    global STARTSCREEN, SETTINGS, MUSICVOLUME
+    buttons.empty()
+    font1 = pygame.font.SysFont('thaoma', 150)
+    font1.set_bold(1)
+    font2 = pygame.font.SysFont('arial', 40)
+    font2.set_bold(1)
+    Button('Громкость музыки: ', (150, 300), (370, 50), 'empty')
+    Button('-', (530, 300), (50, 50), 'minus')
+    Button('+', (660, 300), (50, 50), 'plus')
+    Button('В Меню', (480, 500), (180, 50), 'home')
+    while SETTINGS:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                cursor.on_click(event.pos)
+        screen.fill((0, 0, 0))
+        background.draw(screen)
+        all_sprites.update()
+        settings_text = font1.render('Настройки', 1, TEXTLCOLOR)
+        volume = font2.render(str(MUSICVOLUME), 1, TEXTLCOLOR)
+        screen.blit(settings_text, (250, 80))
+        screen.blit(volume, (590, 300))
+        buttons.draw(screen)
+        pygame.display.flip()
+
+    STARTSCREEN = True
+
+
 start_screen()
 while running:
     score = Score()
@@ -415,6 +461,9 @@ while running:
             IS_MOVING = False
     if board.find_empty():
         board.board_gravity()
+
+    if SETTINGS:
+        settings()
     if STARTSCREEN:
         start_screen()
     c_sprites.update()
