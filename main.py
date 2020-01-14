@@ -3,7 +3,7 @@ import random
 import os
 import sys
 pygame.init()
-SIZE = WIDTH, HEIGHT = 1137, 910
+SIZE = WIDTH, HEIGHT = 1137, 810
 screen = pygame.display.set_mode(SIZE)
 CELL_SIZE = 100
 WHITE = pygame.Color('white')
@@ -19,6 +19,7 @@ SETTINGS = False
 TEXTLCOLOR = (184, 32, 111)
 BUTTONCOLOR = (76, 165, 85)
 SCORE = 0
+GRAVITY = 0.5
 CRYSTALBREAKSOUND = pygame.mixer.Sound('data\sound.wav')
 CRYSTALBREAKSOUND.set_volume(0.2)
 pygame.mixer.music.load('data\music.mp3')
@@ -218,8 +219,11 @@ class Board:
         for cell in self.find_three_in_row(True):
             x, y = cell
             DeleteCrystal(x, y)
+            if self.board[x][y] != 0:
+                create_particles((x * CELL_SIZE + 50, y * CELL_SIZE + 50), self.board[x][y])
             self.board[x][y] = 0
         pygame.sprite.groupcollide(c_sprites, del_c, True, True)
+
         self.board_gravity()
 
     def board_gravity(self):
@@ -285,6 +289,7 @@ del_c = pygame.sprite.Group()
 buttons = pygame.sprite.Group()
 move_point = pygame.sprite.GroupSingle()
 background = pygame.sprite.GroupSingle()
+particles = pygame.sprite.Group()
 
 
 class BackGround(pygame.sprite.Sprite):
@@ -317,12 +322,45 @@ class Crystal(pygame.sprite.Sprite):
                 self.rect.move_ip(0, -MOVESPEED)
             else:
                 self.target = None
-        elif self.rect.y <= 8 * CELL_SIZE and not IS_MOVING:
+        elif self.rect.y <= 7 * CELL_SIZE and not IS_MOVING:
             global move_point
             c_under = MovePoint(self.rect.left, self.rect.top)
             if not pygame.sprite.spritecollideany(c_under, c_sprites):
                 self.rect.move_ip(0, MOVESPEED)
             move_point.empty()
+
+
+screen_rect = (0, 0, WIDTH, HEIGHT)
+
+
+class Particle(pygame.sprite.Sprite):
+    def __init__(self, pos, dx, dy, c_type):
+        self.particle = [load_image(f'{c_type}.png')]
+        for scale in (5, 10, 20):
+            self.particle.append(pygame.transform.scale(self.particle[0], (scale, scale)))
+        self.particle.pop(0)
+        super().__init__(particles)
+        self.image = random.choice(self.particle)
+        self.rect = self.image.get_rect()
+
+        self.velocity = [dx, dy]
+        self.rect.x, self.rect.y = pos
+
+        self.gravity = GRAVITY
+
+    def update(self):
+        self.velocity[1] += self.gravity
+        self.rect.x += self.velocity[0]
+        self.rect.y += self.velocity[1]
+        if not self.rect.colliderect(screen_rect):
+            self.kill()
+
+
+def create_particles(position, c_type):
+    particle_count = 10
+    numbers = range(-5, 6)
+    for _ in range(particle_count):
+        Particle(position, random.choice(numbers), random.choice(numbers), c_type)
 
 
 class Button(pygame.sprite.Sprite):
@@ -349,15 +387,16 @@ class Button(pygame.sprite.Sprite):
             STARTSCREEN = True
             SETTINGS = False
         elif self.type == 'reset':
-            board = Board(9, 9)
+            board = Board(9, 8)
             SCORE = 0
         elif self.type == 'settings':
             SETTINGS = True
             STARTSCREEN = False
         elif self.type == 'plus':
             if MUSICVOLUME < 100:
-                MUSICVOLUME += 10
+                MUSICVOLUME += 110
                 pygame.mixer.music.set_volume(MUSICVOLUME / 100)
+
         elif self.type == 'minus':
             if MUSICVOLUME > 0:
                 MUSICVOLUME -= 10
@@ -379,7 +418,7 @@ class Score:
         screen.blit(self.draw_score, (930, 5))
 
 
-board = Board(9, 9)
+board = Board(9, 8)
 running = True
 BackGround()
 cursor = Cursor(Crystal)
@@ -412,7 +451,7 @@ def start_screen():
     buttons.empty()
     Button('В Меню', (930, 200), (205, 50), 'home')
     Button('Сбросить', (930, 260), (205, 50), 'reset')
-    board = Board(9, 9)
+    board = Board(9, 8)
     score = Score()
 
 
@@ -473,5 +512,7 @@ while running:
     board.render()
     buttons.draw(screen)
     c_sprites.draw(screen)
+    particles.update()
+    particles.draw(screen)
     pygame.display.flip()
     CLOCK.tick(FPS)
