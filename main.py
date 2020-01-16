@@ -20,9 +20,9 @@ TEXTLCOLOR = (184, 32, 111)
 BUTTONCOLOR = (76, 165, 85)
 SCORE = 0
 GRAVITY = 0.5
+pygame.mixer.music.load('data\music.mp3')
 CRYSTALBREAKSOUND = pygame.mixer.Sound('data\sound.wav')
 CRYSTALBREAKSOUND.set_volume(0.2)
-pygame.mixer.music.load('data\music.mp3')
 pygame.mixer.music.set_volume(0.5)
 MUSICVOLUME = int(pygame.mixer.music.get_volume() * 100)
 pygame.mixer.music.play(1)
@@ -59,12 +59,12 @@ class Cursor(pygame.sprite.Sprite):
                 if board.switchable:
                     for i in pygame.sprite.spritecollide(self, c_sprites, False):
                         self.select_second = i
-                    self.swithc(self.select_first, self.select_second, pos)
+                    self.switch(pos)
                 else:
                     self.select_first = self.select_second = None
                     board.select_first = board.select_second = None
 
-    def swithc(self, first, second, pos):
+    def switch(self, pos):
         global IS_MOVING
         cell_1 = board.get_cell(pos)
         cell_2 = board.get_cell((self.select_first.rect.left + 5, self.select_first.rect.top + 5))
@@ -357,7 +357,7 @@ class Particle(pygame.sprite.Sprite):
 
 
 def create_particles(position, c_type):
-    particle_count = 10
+    particle_count = 5
     numbers = range(-5, 6)
     for _ in range(particle_count):
         Particle(position, random.choice(numbers), random.choice(numbers), c_type)
@@ -394,13 +394,13 @@ class Button(pygame.sprite.Sprite):
             STARTSCREEN = False
         elif self.type == 'plus':
             if MUSICVOLUME < 100:
-                MUSICVOLUME += 110
+                MUSICVOLUME += 10
                 pygame.mixer.music.set_volume(MUSICVOLUME / 100)
 
         elif self.type == 'minus':
             if MUSICVOLUME > 0:
                 MUSICVOLUME -= 10
-                pygame.mixer.music.set_volume(MUSICVOLUME/ 100)
+                pygame.mixer.music.set_volume(MUSICVOLUME / 100)
 
 
 class Score:
