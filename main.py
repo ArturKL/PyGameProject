@@ -25,7 +25,7 @@ CRYSTALBREAKSOUND = pygame.mixer.Sound('data\sound.wav')
 CRYSTALBREAKSOUND.set_volume(0.2)
 pygame.mixer.music.set_volume(0.5)
 MUSICVOLUME = int(pygame.mixer.music.get_volume() * 100)
-pygame.mixer.music.play(1)
+pygame.mixer.music.play(-1)
 
 
 def load_image(name):
